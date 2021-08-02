@@ -1,3 +1,17 @@
+"""This script cleans the texts in the tsv file produced by step A00. 
+
+This is the second step (01) in pipeline A.
+
+
+* PLEASE NOTICE:
+* UC5 pipelines are managed via a Makefile. A simple modification of a file will force make to re-run the
+* entire pipeline. Remember to use "touch" to avoid unnecessary runs:
+*   touch -r <oldfile> <script> (in this case, the current .py file)
+
+Author: Franco Alberto Cardillo <francoalberto.cardillo@ilc.cnr.it>
+Date: July 2021
+"""
+
 import fire
 import numpy as np
 import os
