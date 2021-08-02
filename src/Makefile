@@ -79,17 +79,36 @@ $(STEP_A00_WIT_RAW_TSVS): $(TEXT_FLD) $(IMAGE_FLD) A00_process_raw_dataset.py
 	$(PYTHON) A00_process_raw_dataset.py --in_txt_fld=$(TEXT_FLD) --in_img_fld=$(IMAGE_FLD) --out_fld=$(TSV_FLD) --log_level=debug --verbose=False
 	@mv -f $@.tmp $@
 
-raw_tsv_files: $(STEP_A00_WIT_RAW_TSVS)
+# *** step A.01: clean tsv files produced by step A.00
+VERIFIED_TSV_FILE ::= $(addprefix ${TSV_FLD}, reports_ver.tsv)
+LOWERCASE_TSV_FILE ::= $(addprefix ${TSV_FLD}, reports_lower.tsv)
+FINAL_TSV_FILE ::= $(addprefix ${TSV_FLD}, reports.tsv)
+# this step writes three files. using a witness to keep track of the processing
+CLEAN_TSV_FILES ::= $(VERIFIED_TSV_FILE) $(LOWERCASE_TSV_FILE) $(FINAL_TSV_FILE)
+STEP_A01_WIT_FINAL_TSV ::= $(addprefix ${BASE_OUT_FLD}, .A01_witness)
+$(STEP_A01_WIT_FINAL_TSV): $(STEP_A00_WIT_RAW_TSVS) A01_clean_files.py
+	@echo step A_01, A01_clean_files.py, produces: ${CLEAN_TSV_FILES}
+	@echo step A_01 produces multiple outputs: using a witness located at ${STEP_A01_WIT_FINAL_TSV}
+	@rm -f $@.tmp
+	@touch $@.tmp
+	$(PYTHON) A01_clean_files.py --in_img_fld=$(IMAGE_FLD) --in_tsv_fld=$(TSV_FLD) --out_fld=$(TSV_FLD) --log_level=debug
+	@mv -f $@.tmp $@
+
+
+raw_tsv_files : $(STEP_A00_WIT_RAW_TSVS)
+final_tsv_file : $(STEP_A01_WIT_FINAL_TSV)
+
+A_pipeline: | raw_tsv_files final_tsv_file
 
 #  E X T E R N A L  T A R G E T S
 
-all: raw_tsv_file
-	$(warning make all called)
+all: | A_pipeline
+	@echo make all completed
 
 # delete witnesses
 clean_wit:
 	$(warning deleting all witness files)
-	@rm -f $(STEP_A00_WIT_RAW_TSVS)
+	@rm -f $(STEP_A00_WIT_RAW_TSVS) $(STEP_A01_WIT_FINAL_TSV)
 
 .DEFAULT_GOAL := all
 .PHONY: clean_downl_tars download clean_witnesses

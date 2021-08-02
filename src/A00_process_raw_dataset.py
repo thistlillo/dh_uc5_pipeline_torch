@@ -261,8 +261,4 @@ def main(in_txt_fld, in_img_fld, out_fld, log_level="info", verbose=False):
 
 if __name__ == "__main__":
     fire.Fire(main)
-    # parser = argparse.ArgumentParser(description=__doc__)
-    # parser.add_argument("--in_img_fld", type=str, help="folder with images")
-    # parser.add_argument("--in_txt_fld", type=str, help="folder with text reports")
-    # parser.add_argument("--out_fld", type=str, help="output folder for tsv files")
-    # main(parser.parse_args(sys.argv[1:]))
+    

@@ -72,26 +72,27 @@ def substitute_multiple_anon(s):
     return out
 
 # ---
-a = 'aAa 1.'
-print("Input: |%s|" % a)
-print("Minimal, output: |%s|" % minimal_cleaning(a))
+def test():
+    a = 'aAa 1.'
+    print("Input: |%s|" % a)
+    print("Minimal, output: |%s|" % minimal_cleaning(a))
 
-a = '1.hello 2. ciao'
-print("Input: |%s|" % a)
-print("Minimal, output: |%s|" % minimal_cleaning(a))
+    a = '1.x 2. y'
+    print("Input: |%s|" % a)
+    print("Minimal, output: |%s|" % minimal_cleaning(a))
 
-a = 'xxxx-x xxx-x xxx-a'
-print("Input: |%s|" % a)
-print("Minimal, output: |%s|" % minimal_cleaning(a))
+    a = 'xxxx-x xxx-x xxx-a'
+    print("Input: |%s|" % a)
+    print("Minimal, output: |%s|" % minimal_cleaning(a))
 
-a = 'xxxx-x xxx-x xxx-a 1.2 cm 12131.23131 a'
-print("Input: |%s|" % a)
-print("Minimal, output: |%s|" % minimal_cleaning(a))
+    a = 'xxxx-x xxx-x xxx-a 1.2 cm 12131.23131 a'
+    print("Input: |%s|" % a)
+    print("Minimal, output: |%s|" % minimal_cleaning(a))
 
-a = "Comparison XXXX, XXXX. Well-expanded and clear lungs. Mediastinal contour within normal limits. No acute cardiopulmonary abnormality identified."
-print("Input: |%s|" % a)
-print("Minimal, output: |%s|" % minimal_cleaning(a))
+    a = "Comparison XXXX, XXXX. Well-expanded and clear lungs. Mediastinal contour within normal limits. No acute cardiopulmonary abnormality identified."
+    print("Input: |%s|" % a)
+    print("Minimal, output: |%s|" % minimal_cleaning(a))
 
-a = "1. There is abnormal separation of right XXXX XXXX, question very acute versus chronic injury. Correlate for focal pain. If indicated consider dedicated right shoulder films. 2. No acute cortical artery disease."
-print("Input: |%s|" % a)
-print("Minimal, output: |%s|" % minimal_cleaning(a))
+    a = "1. There is abnormal separation of right XXXX XXXX, question very acute versus chronic injury. Correlate for focal pain. If indicated consider dedicated right shoulder films. 2. No acute cortical artery disease."
+    print("Input: |%s|" % a)
+    print("Minimal, output: |%s|" % minimal_cleaning(a))
