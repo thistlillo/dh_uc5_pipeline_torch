@@ -36,7 +36,7 @@ REPORTS_TSV ::= $(addsuffix reports.tsv, ${TSV_FLD})
 IMAGE_FLD ::= $(addsuffix $(IMAGE_SUBFLD)/, ${BASE_DS_FLD})
 TEXT_FLD ::= $(addsuffix $(TEXT_SUBFLD)/, ${BASE_DS_FLD})
 
-OUT_FLD ::= $(addprefix $(BASE_OUT_FLD), development)
+OUT_FLD ::= $(addprefix $(BASE_OUT_FLD), development/)
 $(warning output folder set to ${OUT_FLD})
 
 
@@ -110,7 +110,7 @@ $(STEP_A02_WIT_ENC_MESH) : $(FINAL_TSV_FILE) A02_encode_data.py
 # *** step A.3: adjust one-hot image encoding for using a softmax last layer in CNN
 ADJUSTED_ENC ::= $(addprefix ${TSV_FLD}, e_image_labels_norm_sm.tsv)
 $(ADJUSTED_ENC): $(ENCODED_IMAGE_LABELS) A03_adjust_ds_for_softmax.py
-	$(warning step A.3 produces ${ADJUSTED_ENC})
+	$(warning step A_03 produces ${ADJUSTED_ENC})
 	$(PYTHON) A03_adjust_ds_for_softmax.py --in_tsv_fld=$(TSV_FLD) --out_fld=$(TSV_FLD)
 	$(warning this step completes the preprocessing "pipeline A")
 
@@ -120,15 +120,24 @@ final_tsv_file : $(STEP_A01_WIT_FINAL_TSV)
 enc_mesh_terms : $(STEP_A02_WIT_ENC_MESH)
 alt_enc_images: $(ADJUSTED_ENC)
 
-A_pipeline: | raw_tsv_files final_tsv_file enc_mesh_terms alt_enc_images
 
+A_pipeline: | raw_tsv_files final_tsv_file enc_mesh_terms alt_enc_images
 
 
 # *
 # *  P I P E L I N E   B: prepare training data
 # *
 
-# Establish here what encoding is to be used, if 1-hot or 1-hot/L1
+SHUFFLE_RND_SEED ::=1211
+TRAIN_P ::= 0.7
+VALID_P ::= 0.1
+N_FOLDERS ::= 1
+# TRAIN_MODE one of random | standard | cross_validation (see common/defaults.py)
+TRAIN_MODE ::= standard
+
+# Establish here what encoding is to be used, if 1-hot (e_image_labels.tsv) or 1-hot/L1 (e_image_labels_norm_sm.tsv)
+# NOTE: image labels could be ancoded on-the-fly by the dataset loader. We adopted this solution in order to share the
+#   dataset between the PyTorch and the PyEDDL implementations.
 ALT_ENCODING = 1
 ifdef ALT_ENCODING
 IMG_ENC = e_image_labels_norm_sm.tsv
@@ -139,9 +148,42 @@ IMG_ENC := $(addprefix ${TSV_FLD}, ${IMG_ENC})
 $(warning ** IMPORTANT** using image encoding in: ${IMG_ENC})
 
 
+# *** STEP B_00: select folders for the experiment and prepare the split
+EXP_NAME ::= dev_exp_mk
+EXP_FLD ::= $(addsuffix ${EXP_NAME}/, ${OUT_FLD})
+RESULTS_FLD ::= $(addprefix ${EXP_FLD}, results/ )
+# BEST_CNN ::= $(addprefix ${RESULTS_FLD}, onnx/best.onnx)
+$(warning experiment folder: ${EXP_FLD})
+$(warning creating folder ${EXP_FLD} (if it does not exists) )
+$(shell mkdir -p $(EXP_FLD) )
+$(warning results folder: ${RESULTS_FLD})
+$(warning creating folder ${RESULTS_FLD} (if it does not exists) )
+$(shell mkdir -p $(RESULTS_FLD) )
+
+$(warning training mode ${TRAIN_MODE}, train_p ${TRAIN_P}, valid_p ${VALID_P})
+
+SPLIT_NAMES_I ::= train_i valid_i test_i
+SPLIT_NAMES_R ::= train_r valid_r test_r
+SPLIT_INDEXES_I ::= $(addsuffix .tsv, ${addprefix $(EXP_FLD), $(SPLIT_NAMES_I)} )
+SPLIT_INDEXES_R ::= $(addsuffix .tsv, ${addprefix $(EXP_FLD), $(SPLIT_NAMES_R)})
+STEP_B01_WIT_SPLIT ::= $(addprefix ${EXP_FLD}, .B01_witness)
+$(warning SPLIT_INDEXES: ${SPLIT_INDEXES_I})
+$(STEP_B01_WIT_SPLIT) : $(REPORTS_TSV) $(RESULTS_FLD) B00_prepare_training_data.py
+	$(warning step B_00 produces: ${SPLIT_INDEXES_I} ${SPLIT_INDEXES_R})
+	$(warning step B_00 produces multiple outputs: using a witness located at $@)
+	@rm -f $@.tmp
+	@touch $@.tmp
+	$(PYTHON) B00_prepare_training_data.py --tsv_fld=$(TSV_FLD) --out_fld=$(EXP_FLD) --image_enc=$(IMG_ENC) --train_mode=$(TRAIN_MODE) --n_folders=$(N_FOLDERS) --random_seed=$(SHUFFLE_RND_SEED) --train_p=$(TRAIN_P) --valid_p=$(VALID_P)
+	@mv -f $@.tmp $@
+
+# aliases
+prepare_training_data: $(STEP_B01_WIT_SPLIT)
+
+B_pipeline: | A_pipeline prepare_training_data
+
 #  E X T E R N A L  T A R G E T S
 
-all: | A_pipeline
+all: | A_pipeline B_pipeline
 	@echo make all completed
 
 # delete witnesses
