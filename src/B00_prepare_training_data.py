@@ -22,18 +22,22 @@ import numpy as np
 import os
 import posixpath
 import pandas as pd
+
 import common.defaults as uc5def
 import common.fileutils as fu
 import common.miscutils as mu
 import common.partitioning as partitioning
 import text.report as report
 
-log = mu.create_log_function("trainining-res")
+# log = mu.create_log_function("trainining-res")
 
 
 class TrainingDataManager:
-    def __init__(self, tsv_fld, out_fld, image_enc, train_mode, n_folders, random_seed, train_p, valid_p):
+    def __init__(self, tsv_fld, out_fld, image_enc, train_mode, n_folders, random_seed, train_p, valid_p, log_level="info"):
         # self.conf = conf
+
+        self.logger = uc5def.get_logger(__file__, log_level)
+
         self.tsv_fld = tsv_fld
         self.out_fld = out_fld
         self.image_enc = image_enc  # * we are not using the image encodings, but this assures the id will be actually found in the enc file
@@ -47,16 +51,15 @@ class TrainingDataManager:
         df_reports_filename = posixpath.join(self.tsv_fld, uc5def.out_file_reports)
         self.csvr = pd.read_csv(df_reports_filename, sep=uc5def.csv_separator, na_filter=False)
 
-        log("Read csv file (images) %s: %d lines" % (df_image_fn, len(self.csvi)))
-        log("Read csv file (reports) %s: %d lines" % (df_reports_filename, len(self.csvr)))
+        self.logger.info(f"Read csv file (images) {df_image_fn}: {len(self.csvi)} lines")
+        self.logger.info(f"Read csv file (reports) {df_reports_filename}: {len(self.csvr)} lines")
 
         # percentages for the split
         self.training_perc = train_p
         self.valid_perc = valid_p
         self.test_perc = 1 - self.training_perc - self.valid_perc
 
-        log("Requested split ratios: |training|={:.2f}, |validation|={:.2f}, |test|={:.2f}".format( \
-            self.training_perc, self.valid_perc, self.test_perc))
+        self.logger.info("Requested split ratios: |training|={self.training_perc:.2f}, |validation|={self.valid_perc:.2f}, |test|={self.test_perc:.2f}")
         assert 1 == self.training_perc + self.valid_perc + self.test_perc
 
         # ids in numpy array: used for splitting the ids into the three sets
@@ -65,7 +68,7 @@ class TrainingDataManager:
         self.img_training_set, self.img_test_set, self.img_validation_set = None, None, None
 
         # TODO: select splitting method from configuration
-        log(f'Training mode in configuration file: {train_mode}')
+        self.logger.info(f'Training mode: {train_mode}')
         if train_mode == uc5def.train_mode_cv:
             self.splitter = partitioning.BalancedKFold(
                 self.csvr, self.csvi, n_folders=n_folders, random_seed=self.random_seed, folder_val_perc=self.valid_perc)
@@ -74,7 +77,7 @@ class TrainingDataManager:
         else:
             self.splitter = partitioning.BalancedSplit(self.csvr, self.csvi, self.training_perc, self.valid_perc, self.random_seed)
 
-        log(f"Splitter: {self.splitter.get_name()}")
+        self.logger.info(f"Splitter: {self.splitter.get_name()}")
 
     # def shuffle(self):
     #     random.shuffle(self.report_ids)
@@ -86,10 +89,10 @@ class TrainingDataManager:
         n_folders = self.splitter.get_n_splits()
 
         for i in range(n_folders):
-            log(f'preparing split {i+1}/{n_splits}')
+            self.logger.info(f'preparing split {i+1}/{n_splits}')
             # folder = posixpath.join(time_suffix, uc5def.cv_folder_prefix + '_{:d}of{:d}'.format(i+1, n_folders))
             folder = posixpath.join(uc5def.cv_folder_prefix + '_{:d}of{:d}'.format(i+1, n_folders))
-            log(f'\tsubfolder for the split: {folder}')
+            self.logger.info(f'\tsubfolder for the split: {folder}')
 
             # # self.conf.append_suffix(folder)
             # c = copy.deepcopy(self.conf)
@@ -112,7 +115,7 @@ class TrainingDataManager:
             np.savetxt(training, tr.astype(int), fmt='%i', delimiter=uc5def.csv_separator)
             np.savetxt(test, te.astype(int), fmt='%i',delimiter=uc5def.csv_separator)
             np.savetxt(validation, va.astype(int), fmt='%i',delimiter=uc5def.csv_separator)
-            log(f"Saved:\n\t-{training}\n\t-{validation}\n\t-{test}")
+            self.logger.info(f"Saved:\n\t-{training}\n\t-{validation}\n\t-{test}")
             # # c[K.image_training][K.training_set] = training
             # # c[K.image_training][K.test_set] = test
             # # c[K.image_training][K.validation_set] = validation
@@ -181,7 +184,7 @@ class TrainingDataManager:
     #     log("Training data saved in folder: %s" % exp_folder)
     #     return exp_folder
 
-def main(tsv_fld, out_fld, image_enc, train_mode, n_folders, random_seed, train_p, valid_p):
+def main(tsv_fld, out_fld, image_enc, train_mode, n_folders, random_seed, train_p, valid_p, log_level="info"):
     # TODO: skip this step if conf contains paths to pre-existing splits
     # with open(args.conf, 'r') as stream:
     #     conf = yaml.safe_load(stream)
