@@ -72,7 +72,7 @@ log_levels = {
     'info': logging.INFO,
     'debug': logging.DEBUG
 }
-def get_logger(name=None,level="info"):
+def get_logger(name=None, level="info"):
     if level is None:
         level = "info"
         
