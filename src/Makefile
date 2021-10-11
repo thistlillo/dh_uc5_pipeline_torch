@@ -148,7 +148,7 @@ endif
 
 TRAIN_P ::= 0.7
 VALID_P ::= 0.1
-N_FOLDERS ::= 1
+N_FOLDERS ::= 3
 # TRAIN_MODE one of random | standard | cross_validation (see common/defaults.py)
 TRAIN_MODE ::= standard
 
@@ -199,7 +199,8 @@ $(STEP_B00_WIT_SPLIT): $(STEP_A01_WIT_FINAL_TSV) B00_prepare_training_data.py
 	$(warning step B_00 produces multiple outputs: using a witness located at $@)
 	@rm -f $@.tmp
 	@touch $@.tmp
-	$(PYTHON) B00_prepare_training_data.py --tsv_fld=$(TSV_FLD) --out_fld=$(EXP_FLD) --image_enc=$(IMG_ENC) --train_mode=$(TRAIN_MODE) --n_folders=$(N_FOLDERS) --random_seed=$(SHUFFLE_RND_SEED) --train_p=$(TRAIN_P) --valid_p=$(VALID_P)
+	$(PYTHON) B00_prepare_training_data.py --tsv_fld=$(TSV_FLD) --out_fld=$(EXP_FLD) --image_enc=$(IMG_ENC)\
+	 --train_mode=$(TRAIN_MODE) --n_folders=$(N_FOLDERS) --random_seed=$(SHUFFLE_RND_SEED) --train_p=$(TRAIN_P) --valid_p=$(VALID_P) --log_level=info
 	@mv -f $@.tmp $@
 
 # aliases

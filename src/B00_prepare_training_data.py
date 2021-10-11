@@ -37,7 +37,7 @@ class TrainingDataManager:
         # self.conf = conf
 
         self.logger = uc5def.get_logger(__file__, log_level)
-
+        
         self.tsv_fld = tsv_fld
         self.out_fld = out_fld
         self.image_enc = image_enc  # * we are not using the image encodings, but this assures the id will be actually found in the enc file
@@ -71,11 +71,16 @@ class TrainingDataManager:
         self.logger.info(f'Training mode: {train_mode}')
         if train_mode == uc5def.train_mode_cv:
             self.splitter = partitioning.BalancedKFold(
-                self.csvr, self.csvi, n_folders=n_folders, random_seed=self.random_seed, folder_val_perc=self.valid_perc)
+                self.csvr, self.csvi, n_folders=n_folders, random_seed=self.random_seed, folder_val_perc=self.valid_perc, logger=self.logger)
         elif train_mode == uc5def.train_mode_random:
-            self.splitter = partitioning.RandomSplit(self.csvr, self.csvi, self.training_perc, self.valid_perc, self.random_seed)
+            self.splitter = partitioning.RandomSplit(self.csvr, self.csvi, self.training_perc, self.valid_perc, self.random_seed, logger=self.logger)
         else:
-            self.splitter = partitioning.BalancedSplit(self.csvr, self.csvi, self.training_perc, self.valid_perc, self.random_seed)
+            self.splitter = partitioning.BalancedSplit(self.csvr,
+                                                       self.csvi,
+                                                       self.training_perc,
+                                                       self.valid_perc,
+                                                       self.random_seed,
+                                                       logger=self.logger)
 
         self.logger.info(f"Splitter: {self.splitter.get_name()}")
 
@@ -188,12 +193,13 @@ def main(tsv_fld, out_fld, image_enc, train_mode, n_folders, random_seed, train_
     # TODO: skip this step if conf contains paths to pre-existing splits
     # with open(args.conf, 'r') as stream:
     #     conf = yaml.safe_load(stream)
-    mng = TrainingDataManager(tsv_fld, out_fld, image_enc, train_mode, n_folders, random_seed, train_p, valid_p)
+    
+    mng = TrainingDataManager(tsv_fld, out_fld, image_enc, train_mode, n_folders, random_seed, train_p, valid_p, log_level=log_level)
     fld = mng.partition_examples()
     return fld
     # fld = mng.save()
     # log(f'Experiment folder: {fld}')
 
-    
+
 if __name__ == "__main__":
     fire.Fire(main)

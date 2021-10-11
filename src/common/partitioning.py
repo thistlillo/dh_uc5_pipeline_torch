@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 import math
 import numpy as np
 import pandas as pd
@@ -7,10 +8,14 @@ import random
 import common.miscutils as mu
 import common.defaults as uc5def
 
-log = mu.create_log_function("partitioning")
-
 class BalancedSplit:
-    def __init__(self, reports, images, train_perc, valid_perc, random_seed=datetime.now()):
+    def __init__(self, reports, images, train_perc, valid_perc, random_seed=datetime.now(), logger=None):
+        self.logger = logger
+        
+        if logger is None:
+            self.logger = logging.getLogger(__name__)
+            self.logger.addHandler(logging.NullHandler())
+
         self.csvr = reports
         self.csvi = images
         self.random_seed = random_seed
@@ -65,8 +70,12 @@ class BalancedSplit:
 
 # Groups + stratified (normal + remaining)
 class BalancedKFold:
-    def __init__(self, reports, images, n_folders=1, random_seed=datetime.now(), folder_val_perc=0.2):
-        self.debug = True
+    def __init__(self, reports, images, n_folders=1, random_seed=datetime.now(), folder_val_perc=0.2, logger=None):
+        self.logger = logger
+        if logger is None:
+            self.logger = logging.getLogger(__name__)
+            self.logger.addHandler(logging.NullHandler())
+
         self.reports = reports
         self.n_reports = len(reports)
         self.images = images
@@ -102,9 +111,9 @@ class BalancedKFold:
 
         iii = r.major_mesh == 'normal'
         self.distribution = np.count_nonzero(iii) / len(r)
-        if self.debug:
-            print('Percentage of NEGATIVE instances:', self.distribution)
-            print(f"Total reports: {self.n_reports}, negative instances: {np.count_nonzero(iii)}")
+
+        self.logger.debug('Percentage of NEGATIVE instances:', self.distribution)
+        self.logger.debug(f"Total reports: {self.n_reports}, negative instances: {np.count_nonzero(iii)}")
 
         neg_indexes = r.loc[iii, 'id'].to_numpy(dtype=int) # r.index[iii].to_numpy(dtype=int)
         pos_indexes = r.loc[~iii, 'id'].to_numpy(dtype=int)  # r.index[~iii].to_numpy(dtype=int)
@@ -119,8 +128,7 @@ class BalancedKFold:
 
         self.n_neg = len(neg_indexes)
         self.n_pos = len(pos_indexes)
-        if self.debug:
-            print("|neg|= {}, |pos|= {}".format(self.n_neg, self.n_pos))
+        self.logger.debug("|neg|= {}, |pos|= {}".format(self.n_neg, self.n_pos))
 
         # use math.floor here to use the two 'additional' lists below,
         # otherwise use math.ceil
@@ -131,19 +139,19 @@ class BalancedKFold:
         max_pos_idx = self.n_pos_per_fld * self.n_folders
         self.additional_neg_idxs = self.neg_indexes[max_neg_idx:]
         self.additional_pos_idxs = self.pos_indexes[max_pos_idx:]
-        if self.debug:
-            print('Additional negs: ', len(self.additional_neg_idxs))
-            print('Additional poss: ', len(self.additional_pos_idxs))
+
+        self.logger.debug('Additional negs: ', len(self.additional_neg_idxs))
+        self.logger.debug('Additional poss: ', len(self.additional_pos_idxs))
 
         self.neg_indexes = self.neg_indexes[0:max_neg_idx]
         self.pos_indexes = self.pos_indexes[0:max_pos_idx]
 
         self.folder_size = self.n_neg_per_fld + self.n_pos_per_fld
-        if self.debug:
-            print("|neg| in folder:", self.n_neg_per_fld)
-            print("|pos| in folder:", self.n_pos_per_fld)
-            print("|folder|=", self.folder_size)
-            print(f"Total |examples|= {self.n_reports}, |folder|*n_folders= {self.folder_size * self.n_folders}")
+        if self.logger.isEnabledFor(logging.DEBUG):
+            self.logger.debug("|neg| in folder:", self.n_neg_per_fld)
+            self.logger.debug("|pos| in folder:", self.n_pos_per_fld)
+            self.logger.debug("|folder|=", self.folder_size)
+            self.logger.debug(f"Total |examples|= {self.n_reports}, |folder|*n_folders= {self.folder_size * self.n_folders}")
 
     def split(self, split_index):
         test_neg, test_pos = self.indexes_for_split(split_index)
@@ -180,12 +188,12 @@ class BalancedKFold:
         random.shuffle(validation_set)
         # useless, but doable if needed
         # random.shuffle(test_set)
-        if self.debug:
-            print('Training set')
+        if self.logger.isEnabledFor(logging.DEBUG):
+            self.logger.debug('Training set')
             self.check_set(training_set)
-            print('Validation set')
+            self.logger.debug('Validation set')
             self.check_set(validation_set)
-            print('Test set')
+            self.logger.debug('Test set')
             self.check_set(test_set)
         return training_set, validation_set, test_set
 
@@ -197,11 +205,11 @@ class BalancedKFold:
 
         res_neg = self.neg_indexes[neg_l:neg_r]
         res_pos = self.pos_indexes[pos_l:pos_r]
-        if self.debug:
-            print("Folder", split_index)
-            print("Returning |negative|", len(res_neg))
-            print("Returning |positive|", len(res_pos))
-            print("Returning |total|", len(res_neg) + len(res_pos))
+        if self.logger.isEnabledFor(logging.DEBUG):
+            self.logger.debug("Folder", split_index)
+            self.logger.debug("Returning |negative|", len(res_neg))
+            self.logger.debug("Returning |positive|", len(res_pos))
+            self.logger.debug("Returning |total|", len(res_neg) + len(res_pos))
         return res_neg, res_pos
 
     def get_random_seed(self, seed):
@@ -214,12 +222,17 @@ class BalancedKFold:
         subdf = self.reports[self.reports.id.isin(set)]
         iii = subdf.major_mesh == 'normal'
         d = np.count_nonzero(iii) / len(subdf)
-        print('Distribution in current set: {:.5f}, original: {:.5f}'.format(d, self.distribution))
+        self.logger.debug('Distribution in current set: {:.5f}, original: {:.5f}'.format(d, self.distribution))
 
 
 
 class RandomSplit:
-    def __init__(self, reports, images, train_perc, valid_perc, random_seed=datetime.now()):
+    def __init__(self, reports, images, train_perc, valid_perc, random_seed=datetime.now(), logger=None):
+        self.logger = logger
+        if logger is None:
+            self.logger = logging.getLogger(__name__)
+            self.logger.addHandler(logging.NullHandler())
+
         self.csvr = reports
         self.csvi = images
         self.random_seed = random_seed
@@ -252,43 +265,8 @@ class RandomSplit:
         self.val_ids = self.report_ids[n_train:n_train + n_val]
         self.test_ids = self.report_ids[n_train + n_val:]
 
-        log('Actual |training|: %d' % len(self.train_ids))
-        log('Actual |Validation|: %d' % len(self.val_ids))
-        log('Actual |Test|: %d' % len(self.test_ids))
+        self.logger.debug('Actual |training|: %d', len(self.train_ids))
+        self.logger.debug('Actual |Validation|: %d', len(self.val_ids))
+        self.logger.debug('Actual |Test|: %d', len(self.test_ids))
 
-        # self.img_training_set = self.prepare_image_set(self.train_ids)
-        # self.img_validation_set = self.prepare_image_set(self.val_ids)
-        # self.img_test_set = self.prepare_image_set(self.test_ids)
-        # return self.img_training_set, self.img_validation_set, self.img_test_set
         return self.train_ids, self.val_ids, self.test_ids
-
-    # # use this method to prepare csv files containing image names, ids and encodings
-    # def prepare_image_set(self, report_ids):
-    #     # line in image_df:
-    #     #   index, report_id, image_filename, encoded MeSH
-    #     # i) select reports
-    #     iii = self.csvi['report'].apply(lambda x: x in report_ids)
-    #     # ii) select all columns but the first two: index, report_id
-    #     cols = self.csvi.columns[2:]
-    #     selected = self.csvi.loc[self.csvi.index[iii], cols]
-    #     return selected
-
-
-# ---
-if __name__ == "__main__":
-    reps = pd.read_csv("c:/Users/cardillo/data/deephealth/std-dataset/tsv/reports.tsv", sep=uc5def.csv_separator,
-                       na_filter=False)
-    imgs = pd.read_csv('c:/Users/cardillo/data/deephealth/std-dataset/tsv/encoded/e_image_labels.tsv', sep=uc5def.csv_separator,
-                       na_filter=False)
-    rnd_s = 40
-    nf = 10
-    # p = RandomSplit(reps, imgs, 0.7, 0.1, random_seed=1)
-    # p = BalancedSplit(reps, imgs, 0.7, 0.1, random_seed=1)
-    p = BalancedKFold(reps, None, n_folders=nf, random_seed=rnd_s)
-    t_s, v_s, te_s = p.split(0)
-
-    for j in range(nf):
-        t, v, e = p.split(j)
-        total = len(t) + len(v) + len(e)
-        print('Folder {}, training {}, val {}, test {}, total examples in split {}'.format(j, len(t), len(v), len(e),
-                                                                                           total))
